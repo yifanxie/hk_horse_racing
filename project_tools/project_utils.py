@@ -31,15 +31,14 @@ from sklearn.preprocessing import MinMaxScaler
 import itertools
 import subprocess
 from typing import List, Optional, Dict, Union
-import ml_config
 import matplotlib.pyplot as plt
 import openai
 from tqdm import tqdm
 from sklearn.feature_extraction.text import CountVectorizer
-from fuzzywuzzy import fuzz
+# from fuzzywuzzy import fuzz
 from collections import Counter
 import seaborn as sns
-from cf_matrix import make_confusion_matrix
+# from cf_matrix import make_confusion_matrix
 
 
 def get_time_string(format='%Y%m%d%H%M'):
@@ -517,7 +516,28 @@ def get_list_gmean(lists):
     return gmean_out
 
 
+# def get_array_sharpe(values):
+#     return values.mean() / values.std()
 
+
+def get_array_sharpe(values):
+    """
+    Calculate Sharpe ratio (mean/std) of array while handling missing values
+    
+    Args:
+        values: numpy array or pandas series with possible missing values
+        
+    Returns:
+        float: Sharpe ratio, or np.nan if insufficient valid data
+    """
+    # Remove missing values
+    clean_values = values[~np.isnan(values)]
+    
+    # Check if we have enough valid values
+    if len(clean_values) < 2:  # Need at least 2 points for std
+        return np.nan
+        
+    return clean_values.mean() / clean_values.std()
 
 
 

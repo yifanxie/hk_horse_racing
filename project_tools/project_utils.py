@@ -597,10 +597,10 @@ def groupby_agg_execution(agg_recipies, df, verbose=True):
                 else:
                     agg_name = agg
                     agg_func = agg
-                if agg_name == 'count':
-                    groupby_aggregate_name = '{}_{}'.format(groupby_key, agg_name)
-                else:
-                    groupby_aggregate_name = '{}_{}_{}'.format(groupby_key, feature, agg_name)
+                # if agg_name == 'count':
+                #     groupby_aggregate_name = '{}_{}'.format(groupby_key, agg_name)
+                # else:
+                groupby_aggregate_name = '{}_{}_{}'.format(groupby_key, feature, agg_name)
                 verbose and print(f'generating statistic {groupby_aggregate_name}')
                 groupby_res_df = group_object[feature].agg(agg_func).reset_index(drop=False)
                 groupby_res_df = groupby_res_df.rename(columns={rename_col: groupby_aggregate_name})
@@ -612,5 +612,53 @@ def groupby_agg_execution(agg_recipies, df, verbose=True):
 
 
 
+def analyze_dataframe(df):
+    """
+    Analyze a dataframe and return statistics about missing values and distributions for each column
+    
+    Args:
+        df: pandas DataFrame to analyze
+        
+    Returns:
+        DataFrame containing statistics for each column including missing values counts/ratios,
+        distribution metrics and value data types
+    """
+    stats = []
+    
+    for col in df.columns:
+        missing_count = df[col].isna().sum()
+        missing_ratio = missing_count / len(df)
+        
+        # Get unique data types in the column
+        value_types = df[col].dropna().apply(type).unique()
+        value_types = [t.__name__ for t in value_types]
+        
+        # Get numeric stats, handling non-numeric columns
+        try:
+            mean = df[col].mean()
+            median = df[col].median()
+            min_val = df[col].min()
+            q25 = df[col].quantile(0.25)
+            q75 = df[col].quantile(0.75)
+            max_val = df[col].max()
+            std = df[col].std()
+        except:
+            mean = median = min_val = q25 = q75 = max_val = std = None
+            
+        stats.append({
+            'feature': col,
+            'missing_count': missing_count,
+            'missing_ratio': missing_ratio,
+            'value_types': value_types,
+            'mean': mean,
+            'median': median,
+            'min': min_val,
+            '25%': q25,
+            '75%': q75,
+            'max': max_val,
+            'std': std
+        })
+    
+    return pd.DataFrame(stats)
 
 

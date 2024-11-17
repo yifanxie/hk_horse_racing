@@ -38,6 +38,9 @@ from sklearn.feature_extraction.text import CountVectorizer
 # from fuzzywuzzy import fuzz
 from collections import Counter
 import seaborn as sns
+import numpy as np
+from sklearn.metrics import mean_squared_error, mean_absolute_error, ndcg_score
+from scipy.stats import kendalltau
 # from cf_matrix import make_confusion_matrix
 
 
@@ -660,5 +663,95 @@ def analyze_dataframe(df):
         })
     
     return pd.DataFrame(stats)
+
+
+
+
+
+def binary_encoding(df, feat, replace_na=False):
+    # calculate the highest numerical value used for numeric encoding
+    feat_max = df[feat].max()
+
+    if replace_na:
+        # use the value of feat_max+1 to represent missing value
+        df.loc[pd.isnull(df[feat]), feat] = feat_max + 1
+
+    # create a union set of all possible values of the feature
+    union_val = df[feat].unique()
+
+    # extract the highest value from from the feature in decimal format.
+    max_dec = union_val.max()
+
+    # work out how the ammount of digtis required to be represent max_dev in binary representation
+    max_bin_len = len("{0:b}".format(max_dec))
+    index = np.arange(len(union_val))
+    columns = list([feat])
+
+    # create a binary encoding feature dataframe to capture all the levels for the feature
+    bin_df = pd.DataFrame(index=index, columns=columns)
+    bin_df[feat] = union_val
+
+    # capture the binary representation for each level of the feature
+    feat_bin = bin_df[feat].apply(lambda x: "{0:b}".format(x).zfill(max_bin_len))
+
+    # split the binary representation into different bit of digits
+    splitted = feat_bin.apply(lambda x: pd.Series(list(x)).astype(np.uint8))
+    splitted.columns = [feat + '_bin_' + str(x) for x in splitted.columns]
+    bin_df = bin_df.join(splitted)
+
+    return bin_df
+
+
+def one_hot_encoder(df, nan_as_category = True):
+    original_columns = list(df.columns)
+    categorical_columns = [col for col in df.columns if df[col].dtype == 'object']
+    df = pd.get_dummies(df, columns= categorical_columns, dummy_na= nan_as_category)
+    new_columns = [c for c in df.columns if c not in original_columns]
+    return df, new_columns
+
+
+def freq_encoding(df):
+    result_df=pd.DataFrame()
+    for col in df.columns.tolist():
+        col_freq = col + '_freq'
+        freq = df[col].value_counts()
+        freq = pd.DataFrame(freq)
+        freq.columns = [col_freq]
+        temp_df = df[[col]].join(freq, how='left', on=col)
+        temp_df.drop([col], axis=1, inplace=True)
+
+        # temp_df.fillna(0, inplace=True)
+        if result_df.shape[0]==0:
+            result_df=temp_df
+        else:
+            result_df=pd.concat([result_df, temp_df],axis=1)
+    return result_df
+
+
+
+def ordinal_encoder(df: pd.DataFrame, categorical_features: List[str]) -> pd.DataFrame:
+    """
+    Perform ordinal encoding on specified categorical features in a dataframe.
+    Maps each unique category to an integer value based on order of appearance.
+    
+    Args:
+        df: Input dataframe containing categorical features
+        categorical_features: List of column names to encode
+        
+    Returns:
+        DataFrame with specified categorical columns encoded as ordinal integers
+    """
+    result_df = df.copy()
+    
+    for feature in categorical_features:
+        if feature in df.columns:
+            # Create mapping of unique values to integers
+            unique_values = df[feature].unique()
+            value_map = {val: i for i, val in enumerate(unique_values)}
+            
+            # Replace categories with mapped integers
+            result_df[feature] = df[feature].map(value_map)
+            
+    return result_df[categorical_features]
 
 

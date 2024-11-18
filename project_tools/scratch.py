@@ -66,6 +66,12 @@
 # horse weather dynamics
 
 
+## alternative model approach:
+# class specfic model
+# track specific model
+#
+
+
 def convert_timestamp_to_seconds(timestamp: str) -> float:
     """
     Convert text timestamp in format "M.SS.ss" to total seconds

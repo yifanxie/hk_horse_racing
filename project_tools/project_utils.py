@@ -677,7 +677,7 @@ def binary_encoding(df, feat, replace_na=False):
         df.loc[pd.isnull(df[feat]), feat] = feat_max + 1
 
     # create a union set of all possible values of the feature
-    union_val = df[feat].unique()
+    union_val = df[feat].unique
 
     # extract the highest value from from the feature in decimal format.
     max_dec = union_val.max()
@@ -755,3 +755,50 @@ def ordinal_encoder(df: pd.DataFrame, categorical_features: List[str]) -> pd.Dat
     return result_df[categorical_features]
 
 
+
+def lgbm_feature_importance(model):
+    """
+    method to generate data for model explanation such as feature importance. The only implementation so far is the generate the feature importance in dataframe format. Future implementation could include generating Shap value data
+    :param option:  indicate what type of model explanation data to generate, only feature importance has been implemented so far.
+    :return: the feature importance for each feature in pandas dataframe format
+    """
+    impt_df = pd.DataFrame()
+    impt_df['feature'] = model.feature_name_
+    impt_df['feature_importance'] = model.feature_importances_
+    impt_df = impt_df.sort_values(by='feature_importance', ascending=False).reset_index(drop=True)
+    return impt_df
+
+
+
+
+
+def minmax_scale_features(df: pd.DataFrame, exclude_cols: List[str] = None) -> pd.DataFrame:
+    """
+    Scale features in a dataframe using MinMaxScaler, excluding specified columns.
+    Modifies the input dataframe in place by replacing values with scaled versions.
+    
+    Args:
+        df: Input pandas DataFrame to scale
+        exclude_cols: List of column names to exclude from scaling (e.g. target, categorical cols)
+        
+    Returns:
+        DataFrame with features scaled to 0-1 range
+    """
+    from sklearn.preprocessing import MinMaxScaler
+    
+    # Make copy of input df
+    result_df = df.copy()
+    
+    # Determine columns to scale
+    if exclude_cols is None:
+        exclude_cols = []
+    cols_to_scale = [col for col in df.columns if col not in exclude_cols]
+    
+    # Initialize and fit scaler
+    scaler = MinMaxScaler()
+    scaled_values = scaler.fit_transform(result_df[cols_to_scale])
+    
+    # Replace values with scaled version
+    result_df[cols_to_scale] = scaled_values
+    
+    return result_df

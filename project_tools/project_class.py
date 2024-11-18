@@ -14,6 +14,11 @@ from sklearn.utils.validation import _num_samples
 from scipy.stats.mstats import gmean
 from sklearn.linear_model import RidgeClassifier, Ridge, LogisticRegression
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.pipeline import FeatureUnion, make_pipeline, _fit_transform_one
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
+
+from scipy.sparse import csr_matrix
+
 from bayes_opt import BayesianOptimization
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -1013,3 +1018,117 @@ class TimeSeriesSplit(_BaseKFold):
                 continue
             yield (indices[idx_start:test_start],
                    indices[test_start + delay:test_start + full_test])
+            
+
+
+
+
+class DataFrameImputationTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self, verbose=True, imput_val=0, strategy='value',
+                 pos_imput_val=999999.0, neg_imput_val=-999999.0):
+        self.imput_val = imput_val
+        self.pos_imput_val = pos_imput_val
+        self.neg_imput_val = neg_imput_val
+        self.strategy = strategy
+        self.verbose = verbose
+
+    def fit(self,x):
+        return self
+
+    def transform(self, x):
+        features = x.columns.tolist()
+
+        for feat in features:
+            # perform null/nan imputation
+            # print(str(x[feat].dtype))
+            try:
+                if str(x[feat].dtype)=='category':
+                    if self.verbose: print('converting feature to numeric %s' % feat)
+                    x[feat] = pd.to_numeric(x[feat], downcast ='float')
+
+                if pd.isnull(x[feat]).sum()>0:
+                    if self.verbose: print('performing null imputation for feature %s' % feat)
+                    if self.strategy == 'median':
+                        feat_imput_val = x[feat].median()
+                    elif self.strategy == 'mean':
+                        feat_imput_val = x[feat].mean()
+                    elif self.strategy == 'max_p1':
+                        feat_imput_val = x[feat].max() + 1
+                    elif self.strategy == 'max_x2':
+                        feat_imput_val = x[feat].max() * 2
+                    elif self.strategy == 'zero':
+                        feat_imput_val = 0
+                    elif self.strategy == 'value':
+                        feat_imput_val = self.imput_val
+                    else:
+                        feat_imput_val = 0
+                    if np.isnan(feat_imput_val):  feat_imput_val=0
+                    x.loc[pd.isnull(x[feat]), feat] = feat_imput_val
+
+                # perform inf imputation
+                if np.isinf(x[feat]).sum() > 0:
+                    if self.verbose: print('performing inf imputation for feature %s' % feat)
+                    # feat_imput_val = x[feat].max() * 2
+                    x.loc[np.isinf(x[feat]), feat] = self.pos_imput_val
+                if np.isneginf(x[feat]).sum() > 0:
+                    if self.verbose: print('performing neg inf imputation for feature %s' % feat)
+                    # feat_imput_val = -1 * np.abs(x[feat].min()) * 2
+                    x.loc[np.isneginf(x[feat]), feat] = self.neg_imput_val
+                # if np.isfinite(x[feat]).sum() > 0:
+                #     if self.verbose: print('performing inf imputation for feature %s' % feat)
+                #     feat_imput_val = x[feat].max() * 2
+                #     x.loc[np.isfinite(x[feat]), feat] = feat_imput_val
+
+            except:
+                print('error occur in %s' % feat)
+                break
+        return x
+
+
+
+class DataFrameLabelTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self, verbose=False, nan_as_category=True):
+        self.verbose=verbose
+        self.nan_as_category=nan_as_category
+        pass
+
+    def fit(self, x):
+        return self
+
+    def transform(self, x):
+        cols = x.columns
+        for col in cols:
+            if self.verbose: print('label encoding %s'%col)
+            if self.nan_as_category:
+                x[col].fillna('nan_value')
+            lbl = LabelEncoder()
+            x[col] = lbl.fit_transform(x[col].astype(str))
+        return x
+
+
+
+
+class DataFrameBinaryEncoder(BaseEstimator, TransformerMixin):
+    def __init__(self, cat_cols=[] ,verbose=True):
+        self.bin_df_dict={}
+        self.cat_cols = cat_cols
+        self.verbose=verbose
+
+    def fit(self, x):
+        # self.cols=x.columns
+        if len(self.cat_cols)==0:
+            print('no categorical columns specified for binary encoding')
+            return self
+
+        for col in self.cat_cols:
+            if self.verbose: print('binary encoder: fitting %s'%col)
+            self.bin_df_dict[col]=project_utils.binary_encoding(x, col)
+        return self
+
+    def transform(self, x):
+        for col in self.cat_cols:
+            if self.verbose: print('binary encoder: transforming %s'%col)
+            x=x.merge(right=self.bin_df_dict[col], how='left', on=col)
+        x.drop(self.cat_cols, axis=1, inplace=True)
+        # print(x.columns.tolist())
+        return x

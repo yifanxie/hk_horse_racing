@@ -32,7 +32,6 @@ import itertools
 import subprocess
 from typing import List, Optional, Dict, Union
 import matplotlib.pyplot as plt
-import openai
 from tqdm import tqdm
 from sklearn.feature_extraction.text import CountVectorizer
 # from fuzzywuzzy import fuzz
@@ -615,7 +614,7 @@ def groupby_agg_execution(agg_recipies, df, verbose=True):
 
 
 
-def analyze_dataframe(df):
+def analyze_dataframe(df, verbose=True):
     """
     Analyze a dataframe and return statistics about missing values and distributions for each column
     
@@ -629,6 +628,7 @@ def analyze_dataframe(df):
     stats = []
     
     for col in df.columns:
+        verbose and print(f'analyzing column {col}') 
         missing_count = df[col].isna().sum()
         missing_ratio = missing_count / len(df)
         
@@ -677,7 +677,8 @@ def binary_encoding(df, feat, replace_na=False):
         df.loc[pd.isnull(df[feat]), feat] = feat_max + 1
 
     # create a union set of all possible values of the feature
-    union_val = df[feat].unique
+    union_val = df[feat].unique()
+    # print(union_val)
 
     # extract the highest value from from the feature in decimal format.
     max_dec = union_val.max()
@@ -763,8 +764,12 @@ def lgbm_feature_importance(model):
     :return: the feature importance for each feature in pandas dataframe format
     """
     impt_df = pd.DataFrame()
-    impt_df['feature'] = model.feature_name_
-    impt_df['feature_importance'] = model.feature_importances_
+    try:
+        impt_df['feature'] = model.feature_name_
+        impt_df['feature_importance'] = model.feature_importances_
+    except:
+        impt_df['feature'] = model.feature_name()
+        impt_df['feature_importance'] = model.feature_importance()
     impt_df = impt_df.sort_values(by='feature_importance', ascending=False).reset_index(drop=True)
     return impt_df
 

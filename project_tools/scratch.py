@@ -25,6 +25,8 @@
 # 7.4 horse and jockey top 3 rate in the last 30 days 
 # 7.5 horse and jockey top length to winner in the last 30 days
 # 7.6 group track condition into smaller amount of categories 
+# 8. download and check out new york horse racing data
+# 9. generate additional ideas for - features/data processing/problem framing/modelling approach/post processing
 
 
 
